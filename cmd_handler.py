@@ -5,17 +5,20 @@ import sys
 
 class Blackcat(object):
     def __init__(self):
+        self.parse_input()
+        self.handle_message()
+
+    def parse_input(self):
         if len(sys.argv) < 2:
             sys.exit('Too few arguments')
-
         tokens = sys.argv[1].split(' ')
+        if len(tokens) < 4:
+            sys.exit('Too few tokens')
         self.nick = tokens[0]
         self.channel = tokens[1]
         self.sender = tokens[2]
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
-
-        self.handle_message()
 
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
