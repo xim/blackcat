@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# encoding: utf-8
 
 import sys
 import pickle
@@ -7,10 +8,15 @@ import feedparser
 
 class Blackcat(object):
     def __init__(self):
+        self.parse_input()
+        self.handle_message()
+
+    def parse_input(self):
         if len(sys.argv) < 2:
             sys.exit('Too few arguments')
-
         tokens = sys.argv[1].split(' ')
+        if len(tokens) < 4:
+            sys.exit('Too few tokens')
         self.nick = tokens[0]
         self.channel = tokens[1]
         self.sender = tokens[2]
@@ -39,6 +45,8 @@ class Blackcat(object):
             self.register_feed(self.message)
         elif self.command == 'whatsnew?':
             self.find_latest(self.nick)
+        if self.command == 'xim':
+            self.handle_xim()
         else:
             self.handle_unknown()
 
@@ -56,6 +64,9 @@ class Blackcat(object):
 
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
+
+    def handle_xim(self):
+        self.out('*klemme %(nick)s* ♥')
 
     def handle_unknown(self):
         self.out(
