@@ -23,15 +23,26 @@ class Blackcat(object):
         else:
             self.handle_unknown()
 
-    def out(self, text):
-        # TODO Add nick, channel, etc. automatically
-        print text
+    def out(self, text, **additional_values):
+        values = {
+            'nick': self.nick,
+            'channel': self.channel,
+            'sender': self.sender,
+            'command': self.command,
+            'message': self.message,
+        }
+        if kwargs:
+            values.update(additional_values)
+        print text % values
 
     def handle_hi(self):
-        self.out('Hi, %s! How you doing?' % self.nick)
+        self.out('Hi, %(nick)s! How you doing?')
 
     def handle_unknown(self):
-        self.out('%s: Dunno. Fork http://code.jodal.no/git/?p=blackcat.git and fix it.' % self.nick)
+        self.out(
+            '%(nick)s: Dunno. '
+            'Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
+        )
 
 if __name__ == '__main__':
     blackcat = Blackcat()
