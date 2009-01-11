@@ -3,6 +3,7 @@
 import sys
 import pickle
 import datetime
+import feedparser
 
 class Blackcat(object):
     def __init__(self):
@@ -16,15 +17,15 @@ class Blackcat(object):
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
 
-        feeds = []
-        checks = {}
+        self.feeds = []
+        self.checks = {}
         try:
-            input = open(".irc-feeds", "rb")
-            feeds = pickle.load(input)
-            input.close()
-            input = open(".irc-lastcheck", "rb")
-            checks = pickle.load(input)
-            input.close()
+            _input = open(".irc-feeds", "rb")
+            self.feeds = pickle.load(_input)
+            _input.close()
+            _input = open(".irc-lastcheck", "rb")
+            self.checks = pickle.load(_input)
+            _input.close()
         except IOError:
             print "A virgin feeder?"
 
@@ -35,9 +36,9 @@ class Blackcat(object):
         if self.command == 'hi':
             self.handle_hi()
         elif self.command == 'addfeed':
-            register_feed(rest)
+            self.register_feed(self.message)
         elif self.command == 'whatsnew?':
-            find_latest(nick)
+            self.find_latest(self.nick)
         else:
             self.handle_unknown()
 
@@ -62,35 +63,34 @@ class Blackcat(object):
             'Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
         )
 
-    def register_feed(url):
-        if url in feeds:
+    def register_feed(self, url):
+        if url in self.feeds:
             print "I'm allready watching that feed.. thanks though"
             return
-        feeds.append(url)
+        self.feeds.append(url)
         out = open(".irc-feeds", "rb")
-        pickle.dump(feeds, out)
+        pickle.dump(self.feeds, out)
         out.close()
         print "OK, all done!"
 
-    def find_latest(nick):
-        import feedparser
-        if nick in checks and checks[nick]:
-            last = checks[nick]
+    def find_latest(self, nick):
+        if nick in self.checks and self.checks[nick]:
+            last = self.checks[nick]
         else:
-            checks[nick] = datetime.datetime.now().timetuple()
-            last = checks[nick]
+            self.checks[nick] = datetime.datetime.now().timetuple()
+            last = self.checks[nick]
 
-        for feed in feeds:
+        for feed in self.feeds:
             try:
                 p = feedparser.parse(feed)
-                for entry in p['entries']
+                for entry in p['entries']:
                     if entry.updated_parsed > last:
                         print "%s: %s ( %s )" % (feed['title'], entry['title'], entry['link'])
-            except, e:
+            except:
                 print "ERROR: Could not parse feed %s" % feed
 
         out = open(".irc-lastcheck", "rb")
-        pickle.dump(checks, out)
+        pickle.dump(self.checks, out)
         out.close()
 
 if __name__ == '__main__':
