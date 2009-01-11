@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# encoding: utf-8
 
 import sys
 
@@ -20,6 +21,8 @@ class Blackcat(object):
         # TODO Replace with list of regexps and handlers
         if self.command == 'hi':
             self.handle_hi()
+        if self.command == 'xim':
+            self.handle_xim()
         else:
             self.handle_unknown()
 
@@ -37,6 +40,9 @@ class Blackcat(object):
 
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
+
+    def handle_xim(self):
+        self.out('*klemme %(nick)s* ♥')
 
     def handle_unknown(self):
         self.out(
