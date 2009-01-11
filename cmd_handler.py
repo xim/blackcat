@@ -31,7 +31,7 @@ class Blackcat(object):
             'command': self.command,
             'message': self.message,
         }
-        if kwargs:
+        if additional_values:
             values.update(additional_values)
         print text % values
 
