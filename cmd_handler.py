@@ -34,9 +34,9 @@ class Blackcat(object):
         # TODO Replace with list of regexps and handlers
         if self.command == 'hi':
             self.handle_hi()
-        else if self.command == 'addfeed':
+        elif self.command == 'addfeed':
             register_feed(rest)
-        else if self.command == 'whatsnew?':
+        elif self.command == 'whatsnew?':
             find_latest(nick)
         else:
             self.handle_unknown()
