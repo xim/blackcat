@@ -9,11 +9,13 @@ import pickle
 import subprocess
 import sys
 
-FEEDS_FILE = '.irc-feeds'
-FEED_USERS_FILE = '.irc-feed-users'
+DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
+FEEDS_FILE = DOTFILES + '/feeds.pickle'
+FEED_USERS_FILE = DOTFILES + '/feed-users.pickle'
 
 class Blackcat(object):
     def __init__(self):
+        self.create_dotfiles_dir()
         self.parse_input()
         self.feed_init()
         self.handle_message()
@@ -29,6 +31,10 @@ class Blackcat(object):
         self.sender = tokens[2]
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
+
+    def create_dotfiles_dir(self):
+        if not os.path.isdir(DOTFILES):
+            os.makedirs(DOTFILES)
 
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
