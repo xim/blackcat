@@ -11,6 +11,7 @@ import os
 import pickle
 import subprocess
 import sys
+import re
 
 DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
 DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -24,9 +25,7 @@ logger = logging.getLogger('blackcat')
 class Blackcat(object):
     def __init__(self):
         self.create_dotfiles_dir()
-        self.setup_logging()
-        self.parse_input()
-        self.handle_message()
+        self.setup_logging(2)
 
     def create_dotfiles_dir(self):
         if not os.path.isdir(DOTFILES):
@@ -47,57 +46,64 @@ class Blackcat(object):
             filemode='a',
         )
 
-    def parse_input(self):
-        if len(sys.argv) < 2:
-            print 'Too few arguments'
-            sys.exit(__doc__)
-        tokens = sys.argv[1].split(' ')
-        if len(tokens) < 4:
-            print 'Too few tokens'
-            sys.exit(__doc__)
-        self.nick = tokens[0]
-        self.channel = tokens[1]
-        self.sender = tokens[2]
-        self.command = tokens[3]
-        self.message = ' '.join(tokens[3:])
-
-    def handle_message(self):
-        # TODO Replace with list of regexps and handlers
-        try:
-            if self.command == 'hi':
-                self.handle_hi()
-            elif self.command == 'xim':
-                self.handle_xim()
-            elif self.command == 'fortune':
-                self.handle_fortune()
-            elif self.command == 'addfeed':
-                self.feed_add()
-            elif self.command == 'whatsnew':
-                self.feed_whatsnew()
+    def parse_input(self, input):
+        logger.debug('Request: %s', input)
+        pattern = r'^(?P<nick>\S+)\s(?P<channel>\S+)\s(?P<sender>\S+)\s' \
+            + r'(?P<request>.+)$'
+        matches = re.match(pattern, input)
+        if matches is not None:
+            groups = matches.groupdict()
+            self.nick = groups['nick']
+            if groups['channel'] == 'null':
+                self.channel = None
             else:
-                self.handle_unknown()
-        except Exception, e:
-            logger.exception(e)
-            self.out('%(nick)s: Error: %(error)s', error=e.message)
+                self.channel = groups['channel']
+            self.sender = groups['sender']
+            self.handle_request(groups['request'])
+        else:
+            sys.exit(__doc__)
 
-    def out(self, text, **additional_values):
+    def handle_request(self, request):
+        handlers = (
+            (r'^hi$', self.handle_hi),
+            (r'^xim$', self.handle_xim),
+            (r'^fortune$', self.handle_fortune),
+            (r'^addfeed (?P<feed_url>\S+)$', self.feed_add),
+            (r'^whatsnew$', self.feed_whatsnew),
+            (r'^.*$', self.handle_unknown),
+        )
+        for pattern, handler in handlers:
+            matches = re.match(pattern, request)
+            if matches is not None:
+                groups = matches.groupdict()
+                try:
+                    handler(**groups)
+                except Exception, e:
+                    logger.exception(e)
+                    self.out('%(nick)s: Error: %(error)s', error=e.message)
+                finally:
+                    break
+
+    def out(self, response, **additional_values):
         values = {
             'nick': self.nick,
             'channel': self.channel,
             'sender': self.sender,
-            'command': self.command,
-            'message': self.message,
         }
         if additional_values:
             values.update(additional_values)
-        if self.sender != self.nick:
-            text = '%(nick)s: ' + text
-        print text % values
+        if not self.is_privmsg():
+            response = '%(nick)s: ' + response
+        response = response % values
+        logger.debug('Response: %s', response)
+        print response
+
+    def is_privmsg(self):
+        return self.sender == self.nick
 
     def handle_unknown(self):
-        self.out(
-             'Dunno. Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
-        )
+        self.out('Dunno. Fork http://code.jodal.no/git/?p=blackcat.git '
+            + 'and fix it.')
 
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
@@ -106,7 +112,7 @@ class Blackcat(object):
         self.out('*klemme* ♥')
 
     def handle_fortune(self):
-        # TODO Works from command line, but not from IRC
+        # FIXME Works from command line, but not from IRC
         with subprocess.Popen(['fortune', '-s'],
                 stdout=subprocess.PIPE).stdout as pipe:
             for line in pipe:
@@ -130,9 +136,8 @@ class Blackcat(object):
         with open(FEEDS_FILE, 'wb') as file:
             pickle.dump(feeds, file)
 
-    def feed_add(self):
+    def feed_add(self, feed_url):
         feeds = self._feed_load()
-        feed_url = self.message.split(' ')[1]
         if feed_url in feeds[self.nick]['feeds']:
             self.out("You're already watching that feed.")
         else:
@@ -169,3 +174,7 @@ class Blackcat(object):
 
 if __name__ == '__main__':
     blackcat = Blackcat()
+    if len(sys.argv) == 2:
+        blackcat.parse_input(sys.argv[1])
+    else:
+        sys.exit(__doc__)
