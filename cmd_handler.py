@@ -13,12 +13,11 @@ import subprocess
 import sys
 
 DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
+DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 FEEDS_FILE = DOTFILES + '/feeds.pickle'
-FEED_USERS_FILE = DOTFILES + '/feed-users.pickle'
-
+FEEDS_MAX_ENTRIES = 3
 LOG_FILE = DOTFILES + '/blackcat.log'
 LOG_FORMAT = '%(asctime)s %(levelname)-8s %(message)s'
-DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 logger = logging.getLogger('blackcat')
 
@@ -27,7 +26,6 @@ class Blackcat(object):
         self.create_dotfiles_dir()
         self.setup_logging()
         self.parse_input()
-        self.init_handlers()
         self.handle_message()
 
     def create_dotfiles_dir(self):
@@ -63,9 +61,6 @@ class Blackcat(object):
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
 
-    def init_handlers(self):
-        self.feed_init()
-
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
         try:
@@ -83,7 +78,7 @@ class Blackcat(object):
                 self.handle_unknown()
         except Exception, e:
             logger.exception(e)
-            self.out(e)
+            self.out('%(nick)s: Error: %(error)s', error=e.message)
 
     def out(self, text, **additional_values):
         values = {
@@ -118,54 +113,58 @@ class Blackcat(object):
                 if line.strip():
                     self.out(line)
 
-    def feed_init(self):
-        self.feeds = []
-        self.checks = {}
+    def _feed_load(self):
+        feeds = {}
         if os.path.exists(FEEDS_FILE):
             with open(FEEDS_FILE, 'rb') as file:
-                self.feeds = pickle.load(file)
-        if os.path.exists(FEED_USERS_FILE):
-            with open(FEED_USERS_FILE, 'rb') as file:
-                self.checks = pickle.load(file)
+                feeds = pickle.load(file)
+        if self.nick not in feeds:
+            feeds[self.nick] = {
+                'last': dt.datetime.now() - dt.timedelta(days=1),
+                'feeds': [],
+            }
+        return feeds
+
+    def _feed_save(self, feeds):
+        with open(FEEDS_FILE, 'wb') as file:
+            pickle.dump(feeds, file)
 
     def feed_add(self):
-        url = self.message.split(' ')[1]
-        if url in self.feeds:
-            self.out("I'm allready watching that feed.")
+        feeds = self._feed_load()
+        feed_url = self.message.split(' ')[1]
+        if feed_url in feeds[self.nick]['feeds']:
+            self.out("%(nick)s: You're already watching that feed.")
         else:
-            self.feeds.append(url)
-            with open(FEEDS_FILE, 'wb') as file:
-                pickle.dump(self.feeds, file)
-            self.out('OK, feed added!')
+            feeds[self.nick]['feeds'].append(feed_url)
+            self._feed_save(feeds)
+            self.out('%(nick)s: Feed added!')
 
     def feed_whatsnew(self):
-        anything_new = False
-        if self.nick in self.checks and self.checks[self.nick]:
-            last = self.checks[self.nick]
+        feeds = self._feed_load()
+        new_entries = []
+        for feed_url in feeds[self.nick]['feeds']:
+            feed = feedparser.parse(feed_url)
+            for entry in feed.entries:
+                updated = dt.datetime(*entry.updated_parsed[:6])
+                if updated > feeds[self.nick]['last']:
+                    new_entries.append(entry)
+        if new_entries:
+            self.out(
+                '%(nick)s: %(num_entries)d new, listing %(num_listed)d',
+                num_entries=len(new_entries),
+                num_listed=min(len(new_entries), FEEDS_MAX_ENTRIES),
+            )
+            for entry in new_entries[:FEEDS_MAX_ENTRIES]:
+                self.out(
+                    '%(feed)s: %(entry)s <%(url)s>',
+                    feed=feed.feed.title,
+                    entry=entry.title,
+                    url=entry.link,
+                )
+            feeds[self.nick]['last'] = dt.datetime.now()
+            self._feed_save(feeds)
         else:
-            last = dt.datetime.now() + dt.timedelta(days=-1)
-        for feed_url in self.feeds:
-            try:
-                feed = feedparser.parse(feed_url)
-                for entry in feed.entries:
-                    updated = dt.datetime(*entry.updated_parsed[:6])
-                    if updated > last:
-                        anything_new = True
-                        self.out(
-                            '%(feed)s: %(entry)s <%(url)s>',
-                            feed=feed.feed.title,
-                            entry=entry.title,
-                            url=entry.link,
-                        )
-            except IOError:
-                self.out('ERROR: Could not parse feed: %(url)s',
-                    url=feed_url)
-        if anything_new:
-            self.checks[self.nick] = dt.datetime.now()
-            with open(FEED_USERS_FILE, 'wb') as file:
-                pickle.dump(self.checks, file)
-        else:
-            self.out('%(nick)s: Nothing new.')
+            self.out('%(nick)s: Nothing new')
 
 if __name__ == '__main__':
     blackcat = Blackcat()
