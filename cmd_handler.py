@@ -90,19 +90,20 @@ class Blackcat(object):
         }
         if additional_values:
             values.update(additional_values)
+        if self.sender != self.nick:
+            text = '%(nick)s: ' + text
         print text % values
 
     def handle_unknown(self):
         self.out(
-             '%(nick)s: Dunno. '
-             'Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
+             'Dunno. Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
         )
 
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
 
     def handle_xim(self):
-        self.out('*klemme %(nick)s* ♥')
+        self.out('*klemme* ♥')
 
     def handle_fortune(self):
         # TODO Works from command line, but not from IRC
@@ -133,11 +134,11 @@ class Blackcat(object):
         feeds = self._feed_load()
         feed_url = self.message.split(' ')[1]
         if feed_url in feeds[self.nick]['feeds']:
-            self.out("%(nick)s: You're already watching that feed.")
+            self.out("You're already watching that feed.")
         else:
             feeds[self.nick]['feeds'].append(feed_url)
             self._feed_save(feeds)
-            self.out('%(nick)s: Feed added!')
+            self.out('Feed added!')
 
     def feed_whatsnew(self):
         feeds = self._feed_load()
@@ -150,7 +151,7 @@ class Blackcat(object):
                     new_entries.append(entry)
         if new_entries:
             self.out(
-                '%(nick)s: %(num_entries)d new, listing %(num_listed)d',
+                '%(num_entries)d new, listing %(num_listed)d',
                 num_entries=len(new_entries),
                 num_listed=min(len(new_entries), FEEDS_MAX_ENTRIES),
             )
@@ -164,7 +165,7 @@ class Blackcat(object):
             feeds[self.nick]['last'] = dt.datetime.now()
             self._feed_save(feeds)
         else:
-            self.out('%(nick)s: Nothing new')
+            self.out('Nothing new')
 
 if __name__ == '__main__':
     blackcat = Blackcat()
