@@ -1,9 +1,12 @@
 #! /usr/bin/env python
 # encoding: utf-8
 
+"""Usage: ./blackcat 'NICK CHANNEL SENDER MESSAGE'"""
+
 from __future__ import with_statement
 import datetime as dt
 import feedparser
+import logging
 import os
 import pickle
 import subprocess
@@ -13,19 +16,28 @@ DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
 FEEDS_FILE = DOTFILES + '/feeds.pickle'
 FEED_USERS_FILE = DOTFILES + '/feed-users.pickle'
 
+LOG_FILE = DOTFILES + '/blackcat.log'
+LOG_FORMAT = '%(asctime)s %(levelname)-8s %(message)s'
+DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+logger = logging.getLogger('blackcat')
+
 class Blackcat(object):
     def __init__(self):
         self.create_dotfiles_dir()
+        self.setup_logging()
         self.parse_input()
         self.feed_init()
         self.handle_message()
 
     def parse_input(self):
         if len(sys.argv) < 2:
-            sys.exit('Too few arguments (%s)' % sys.argv)
+            print 'Too few arguments'
+            sys.exit(__doc__)
         tokens = sys.argv[1].split(' ')
         if len(tokens) < 4:
-            sys.exit('Too few tokens (%s)' % tokens)
+            print 'Too few tokens'
+            sys.exit(__doc__)
         self.nick = tokens[0]
         self.channel = tokens[1]
         self.sender = tokens[2]
@@ -35,6 +47,21 @@ class Blackcat(object):
     def create_dotfiles_dir(self):
         if not os.path.isdir(DOTFILES):
             os.makedirs(DOTFILES)
+
+    def setup_logging(self, verbosity_level=1):
+        if verbosity_level == 0:
+            level = logging.WARNING
+        elif verbosity_level == 2:
+            level = logging.DEBUG
+        else:
+            level = logging.INFO
+        logging.basicConfig(
+            level=level,
+            format=LOG_FORMAT,
+            datefmt=DATE_TIME_FORMAT,
+            filename=LOG_FILE,
+            filemode='a',
+        )
 
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
@@ -52,6 +79,7 @@ class Blackcat(object):
             else:
                 self.handle_unknown()
         except Exception, e:
+            logger.exception(e)
             self.out(e)
 
     def out(self, text, **additional_values):
