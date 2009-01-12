@@ -115,11 +115,10 @@ class Blackcat(object):
         self.out('*klemme* ♥')
 
     def handle_fortune(self):
-        # FIXME Works from command line, but not from IRC
-        with subprocess.Popen(['fortune', '-s'],
+        with subprocess.Popen(['/usr/games/fortune', '-s'],
                 stdout=subprocess.PIPE).stdout as pipe:
             for line in pipe:
-                line = line.replace('\n', '')
+                line = line.replace('\n', '').replace('\t', '  ')
                 if line.strip():
                     self.out(line)
 
