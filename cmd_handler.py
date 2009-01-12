@@ -27,22 +27,8 @@ class Blackcat(object):
         self.create_dotfiles_dir()
         self.setup_logging()
         self.parse_input()
-        self.feed_init()
+        self.init_handlers()
         self.handle_message()
-
-    def parse_input(self):
-        if len(sys.argv) < 2:
-            print 'Too few arguments'
-            sys.exit(__doc__)
-        tokens = sys.argv[1].split(' ')
-        if len(tokens) < 4:
-            print 'Too few tokens'
-            sys.exit(__doc__)
-        self.nick = tokens[0]
-        self.channel = tokens[1]
-        self.sender = tokens[2]
-        self.command = tokens[3]
-        self.message = ' '.join(tokens[3:])
 
     def create_dotfiles_dir(self):
         if not os.path.isdir(DOTFILES):
@@ -62,6 +48,23 @@ class Blackcat(object):
             filename=LOG_FILE,
             filemode='a',
         )
+
+    def parse_input(self):
+        if len(sys.argv) < 2:
+            print 'Too few arguments'
+            sys.exit(__doc__)
+        tokens = sys.argv[1].split(' ')
+        if len(tokens) < 4:
+            print 'Too few tokens'
+            sys.exit(__doc__)
+        self.nick = tokens[0]
+        self.channel = tokens[1]
+        self.sender = tokens[2]
+        self.command = tokens[3]
+        self.message = ' '.join(tokens[3:])
+
+    def init_handlers(self):
+        self.feed_init()
 
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
