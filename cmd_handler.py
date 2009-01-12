@@ -68,7 +68,10 @@ class Blackcat(object):
             (r'^hi$', self.handle_hi),
             (r'^xim$', self.handle_xim),
             (r'^fortune$', self.handle_fortune),
-            (r'^addfeed (?P<feed_url>\S+)$', self.feed_add),
+            (r'^feeds( help)*$', self.feed_help),
+            (r'^feeds list$', self.feed_list),
+            (r'^feeds add (?P<feed_url>\S+)$', self.feed_add),
+            (r'^feeds rm (?P<feed_url>\S+)$', self.feed_rm),
             (r'^whatsnew$', self.feed_whatsnew),
             (r'^.*$', self.handle_unknown),
         )
@@ -136,14 +139,35 @@ class Blackcat(object):
         with open(FEEDS_FILE, 'wb') as file:
             pickle.dump(feeds, file)
 
+    def feed_help(self):
+        self.out('Admin: feeds (help|list|add URL|rm URL)')
+        self.out('Usage: whatsnew')
+
+    def feed_list(self):
+        feeds = self._feed_load()
+        if len(feeds[self.nick]['feeds']) == 0:
+            self.out('You are not watching any feeds')
+        else:
+            for feed in feeds[self.nick]['feeds']:
+                self.out(feed)
+
     def feed_add(self, feed_url):
         feeds = self._feed_load()
         if feed_url in feeds[self.nick]['feeds']:
-            self.out("You're already watching that feed.")
+            self.out("You're already watching that feed")
         else:
             feeds[self.nick]['feeds'].append(feed_url)
             self._feed_save(feeds)
             self.out('Feed added!')
+
+    def feed_rm(self, feed_url):
+        feeds = self._feed_load()
+        if feed_url not in feeds[self.nick]['feeds']:
+            self.out("You're not watching that feed")
+        else:
+            feeds[self.nick]['feeds'].remove(feed_url)
+            self._feed_save(feeds)
+            self.out('Feed removed!')
 
     def feed_whatsnew(self):
         feeds = self._feed_load()
@@ -153,20 +177,20 @@ class Blackcat(object):
             for entry in feed.entries:
                 updated = dt.datetime(*entry.updated_parsed[:6])
                 if updated > feeds[self.nick]['last']:
-                    new_entries.append(entry)
+                    new_entries.append('%(feed)s: %(entry)s <%(url)s>' % {
+                        'feed': feed.feed.title,
+                        'entry': entry.title,
+                        'url': entry.link,
+                    })
         if new_entries:
+            num_entries = len(new_entries)
             self.out(
-                '%(num_entries)d new, listing %(num_listed)d',
-                num_entries=len(new_entries),
-                num_listed=min(len(new_entries), FEEDS_MAX_ENTRIES),
+                'Listing %(num_listed)d of %(num_entries)d new',
+                num_listed=min(num_entries, FEEDS_MAX_ENTRIES),
+                num_entries=num_entries,
             )
             for entry in new_entries[:FEEDS_MAX_ENTRIES]:
-                self.out(
-                    '%(feed)s: %(entry)s <%(url)s>',
-                    feed=feed.feed.title,
-                    entry=entry.title,
-                    url=entry.link,
-                )
+                self.out(entry)
             feeds[self.nick]['last'] = dt.datetime.now()
             self._feed_save(feeds)
         else:
