@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # encoding: utf-8
 
+import subprocess
 import sys
 
 class Blackcat(object):
@@ -10,10 +11,10 @@ class Blackcat(object):
 
     def parse_input(self):
         if len(sys.argv) < 2:
-            sys.exit('Too few arguments')
+            sys.exit('Too few arguments (%s)' % sys.argv)
         tokens = sys.argv[1].split(' ')
         if len(tokens) < 4:
-            sys.exit('Too few tokens')
+            sys.exit('Too few tokens (%s)' % tokens)
         self.nick = tokens[0]
         self.channel = tokens[1]
         self.sender = tokens[2]
@@ -24,8 +25,10 @@ class Blackcat(object):
         # TODO Replace with list of regexps and handlers
         if self.command == 'hi':
             self.handle_hi()
-        if self.command == 'xim':
+        elif self.command == 'xim':
             self.handle_xim()
+        elif self.command == 'fortune':
+            self.handle_fortune()
         else:
             self.handle_unknown()
 
@@ -46,6 +49,20 @@ class Blackcat(object):
 
     def handle_xim(self):
         self.out('*klemme %(nick)s* ♥')
+
+    def handle_fortune(self):
+        # TODO Works from command line, but not from IRC
+        pipe = subprocess.Popen(['fortune', '-s'],
+                stdout=subprocess.PIPE).stdout
+        try:
+            for line in pipe:
+                line = line.replace('\n', '')
+                if line.strip():
+                    self.out(line)
+        except OSError, e:
+            self.out(e)
+        finally:
+            pipe.close()
 
     def handle_unknown(self):
         self.out(
