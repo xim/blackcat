@@ -66,7 +66,7 @@ class Blackcat(object):
     def handle_request(self, request):
         handlers = (
             (r'^hi$', self.handle_hi),
-            (r'^xim$', self.handle_xim),
+            (r'^hug(\s(?P<what>.*))*$', self.handle_hug),
             (r'^fortune$', self.handle_fortune),
             (r'^feeds( help)*$', self.feed_help),
             (r'^feeds list$', self.feed_list),
@@ -95,7 +95,7 @@ class Blackcat(object):
         }
         if additional_values:
             values.update(additional_values)
-        if not self.is_privmsg():
+        if not self.is_privmsg() and not response.startswith('*'):
             response = '%(nick)s: ' + response
         response = response % values
         logger.debug('Response: %s', response)
@@ -111,8 +111,11 @@ class Blackcat(object):
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
 
-    def handle_xim(self):
-        self.out('*klemme* ♥')
+    def handle_hug(self, what):
+        if what:
+            self.out('*klemme %(what)s* ♥', what=what)
+        else:
+            self.out('*klemme* ♥')
 
     def handle_fortune(self):
         with subprocess.Popen(['/usr/games/fortune', '-s'],
