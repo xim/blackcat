@@ -8,6 +8,19 @@ import feedparser
 
 class Blackcat(object):
     def __init__(self):
+        self.feeds = []
+        self.checks = {}
+
+        try:
+            _input = open(".irc-feeds", "rb")
+            self.feeds = pickle.load(_input)
+            _input.close()
+            _input = open(".irc-lastcheck", "rb")
+            self.checks = pickle.load(_input)
+            _input.close()
+        except:
+            pass
+
         self.parse_input()
         self.handle_message()
 
@@ -16,26 +29,14 @@ class Blackcat(object):
             sys.exit('Too few arguments')
         tokens = sys.argv[1].split(' ')
         if len(tokens) < 4:
-            sys.exit('Too few tokens')
+            sys.exit('Too few tokens %s' % str(tokens))
         self.nick = tokens[0]
         self.channel = tokens[1]
         self.sender = tokens[2]
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
 
-        self.feeds = []
-        self.checks = {}
-        try:
-            _input = open(".irc-feeds", "rb")
-            self.feeds = pickle.load(_input)
-            _input.close()
-            _input = open(".irc-lastcheck", "rb")
-            self.checks = pickle.load(_input)
-            _input.close()
-        except IOError:
-            print "A virgin feeder?"
 
-        self.handle_message()
 
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
@@ -43,9 +44,9 @@ class Blackcat(object):
             self.handle_hi()
         elif self.command == 'addfeed':
             self.register_feed(self.message)
-        elif self.command == 'whatsnew?':
+        elif self.command == 'whatsnew':
             self.find_latest(self.nick)
-        if self.command == 'xim':
+        elif self.command == 'xim':
             self.handle_xim()
         else:
             self.handle_unknown()
@@ -70,16 +71,15 @@ class Blackcat(object):
 
     def handle_unknown(self):
         self.out(
-            '%(nick)s: Dunno. '
-            'Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
+            self.command
         )
 
     def register_feed(self, url):
         if url in self.feeds:
             print "I'm allready watching that feed.. thanks though"
             return
-        self.feeds.append(url)
-        out = open(".irc-feeds", "rb")
+        self.feeds.append(url.split(" ")[1])
+        out = open(".irc-feeds", "wb")
         pickle.dump(self.feeds, out)
         out.close()
         print "OK, all done!"
@@ -88,19 +88,21 @@ class Blackcat(object):
         if nick in self.checks and self.checks[nick]:
             last = self.checks[nick]
         else:
-            self.checks[nick] = datetime.datetime.now().timetuple()
-            last = self.checks[nick]
+            last = datetime.datetime.now() + datetime.timedelta(days=-1)
 
         for feed in self.feeds:
             try:
                 p = feedparser.parse(feed)
                 for entry in p['entries']:
-                    if entry.updated_parsed > last:
-                        print "%s: %s ( %s )" % (feed['title'], entry['title'], entry['link'])
-            except:
+                    u = entry.updated_parsed
+                    u = datetime.datetime(u[0],u[1],u[2],u[3],u[4],u[5],u[6])
+                    if u > last:
+                        print "%s: %s ( %s )" % (p['feed']['title'], entry['title'], entry['link'])
+            except IOError:
                 print "ERROR: Could not parse feed %s" % feed
 
-        out = open(".irc-lastcheck", "rb")
+        self.checks[nick] = datetime.datetime.now()
+        out = open(".irc-lastcheck", "wb")
         pickle.dump(self.checks, out)
         out.close()
 
