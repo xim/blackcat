@@ -1,28 +1,21 @@
 #! /usr/bin/env python
 # encoding: utf-8
 
+from __future__ import with_statement
+import datetime as dt
+import feedparser
+import os
+import pickle
 import subprocess
 import sys
-import pickle
-import datetime
-import feedparser
+
+FEEDS_FILE = '.irc-feeds'
+FEED_USERS_FILE = '.irc-feed-users'
 
 class Blackcat(object):
     def __init__(self):
-        self.feeds = []
-        self.checks = {}
-
-        try:
-            _input = open(".irc-feeds", "rb")
-            self.feeds = pickle.load(_input)
-            _input.close()
-            _input = open(".irc-lastcheck", "rb")
-            self.checks = pickle.load(_input)
-            _input.close()
-        except:
-            pass
-
         self.parse_input()
+        self.feed_init()
         self.handle_message()
 
     def parse_input(self):
@@ -37,22 +30,23 @@ class Blackcat(object):
         self.command = tokens[3]
         self.message = ' '.join(tokens[3:])
 
-
-
     def handle_message(self):
         # TODO Replace with list of regexps and handlers
-        if self.command == 'hi':
-            self.handle_hi()
-        elif self.command == 'xim':
-            self.handle_xim()
-        elif self.command == 'fortune':
-            self.handle_fortune()
-        elif self.command == 'addfeed':
-            self.register_feed(self.message)
-        elif self.command == 'whatsnew':
-            self.find_latest(self.nick)
-        else:
-            self.handle_unknown()
+        try:
+            if self.command == 'hi':
+                self.handle_hi()
+            elif self.command == 'xim':
+                self.handle_xim()
+            elif self.command == 'fortune':
+                self.handle_fortune()
+            elif self.command == 'addfeed':
+                self.feed_add()
+            elif self.command == 'whatsnew':
+                self.feed_whatsnew()
+            else:
+                self.handle_unknown()
+        except Exception, e:
+            self.out(e)
 
     def out(self, text, **additional_values):
         values = {
@@ -66,6 +60,12 @@ class Blackcat(object):
             values.update(additional_values)
         print text % values
 
+    def handle_unknown(self):
+        self.out(
+             '%(nick)s: Dunno. '
+             'Fork http://code.jodal.no/git/?p=blackcat.git and fix it.'
+        )
+
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
 
@@ -74,54 +74,61 @@ class Blackcat(object):
 
     def handle_fortune(self):
         # TODO Works from command line, but not from IRC
-        pipe = subprocess.Popen(['fortune', '-s'],
-                stdout=subprocess.PIPE).stdout
-        try:
+        with subprocess.Popen(['fortune', '-s'],
+                stdout=subprocess.PIPE).stdout as pipe:
             for line in pipe:
                 line = line.replace('\n', '')
                 if line.strip():
                     self.out(line)
-        except OSError, e:
-            self.out(e)
-        finally:
-            pipe.close()
 
-    def handle_unknown(self):
-        self.out(
-            self.command
-        )
+    def feed_init(self):
+        self.feeds = []
+        self.checks = {}
+        if os.path.exists(FEEDS_FILE):
+            with open(FEEDS_FILE, 'rb') as file:
+                self.feeds = pickle.load(file)
+        if os.path.exists(FEED_USERS_FILE):
+            with open(FEED_USERS_FILE, 'rb') as file:
+                self.checks = pickle.load(file)
 
-    def register_feed(self, url):
+    def feed_add(self):
+        url = self.message.split(' ')[1]
         if url in self.feeds:
-            print "I'm allready watching that feed.. thanks though"
-            return
-        self.feeds.append(url.split(" ")[1])
-        out = open(".irc-feeds", "wb")
-        pickle.dump(self.feeds, out)
-        out.close()
-        print "OK, all done!"
-
-    def find_latest(self, nick):
-        if nick in self.checks and self.checks[nick]:
-            last = self.checks[nick]
+            self.out("I'm allready watching that feed.")
         else:
-            last = datetime.datetime.now() + datetime.timedelta(days=-1)
+            self.feeds.append(url)
+            with open(FEEDS_FILE, 'wb') as file:
+                pickle.dump(self.feeds, file)
+            self.out('OK, feed added!')
 
-        for feed in self.feeds:
+    def feed_whatsnew(self):
+        anything_new = False
+        if self.nick in self.checks and self.checks[self.nick]:
+            last = self.checks[self.nick]
+        else:
+            last = dt.datetime.now() + dt.timedelta(days=-1)
+        for feed_url in self.feeds:
             try:
-                p = feedparser.parse(feed)
-                for entry in p['entries']:
-                    u = entry.updated_parsed
-                    u = datetime.datetime(u[0],u[1],u[2],u[3],u[4],u[5],u[6])
-                    if u > last:
-                        print "%s: %s ( %s )" % (p['feed']['title'], entry['title'], entry['link'])
+                feed = feedparser.parse(feed_url)
+                for entry in feed.entries:
+                    updated = dt.datetime(*entry.updated_parsed[:6])
+                    if updated > last:
+                        anything_new = True
+                        self.out(
+                            '%(feed)s: %(entry)s <%(url)s>',
+                            feed=feed.feed.title,
+                            entry=entry.title,
+                            url=entry.link,
+                        )
             except IOError:
-                print "ERROR: Could not parse feed %s" % feed
-
-        self.checks[nick] = datetime.datetime.now()
-        out = open(".irc-lastcheck", "wb")
-        pickle.dump(self.checks, out)
-        out.close()
+                self.out('ERROR: Could not parse feed: %(url)s',
+                    url=feed_url)
+        if anything_new:
+            self.checks[self.nick] = dt.datetime.now()
+            with open(FEED_USERS_FILE, 'wb') as file:
+                pickle.dump(self.checks, file)
+        else:
+            self.out('%(nick)s: Nothing new.')
 
 if __name__ == '__main__':
     blackcat = Blackcat()
