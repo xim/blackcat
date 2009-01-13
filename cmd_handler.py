@@ -121,10 +121,17 @@ class Blackcat(object):
         self.out('Hi, %(nick)s! How you doing?')
 
     def handle_hug(self, what):
+        hugs = (
+            'klemme',
+            'kose',
+            'tafse på',
+            'våtjokke',
+        )
+        hug = hugs[random.randrange(0, len(hugs))]
         if what:
-            self.out('*klemme %(what)s* ♥', what=what)
+            self.out('*%(hug)s %(what)s* ♥', hug=hug, what=what)
         else:
-            self.out('*klemme* ♥')
+            self.out('*%(hug)s* ♥', hug=hug)
 
     def handle_insult(self, who):
         insults = (
