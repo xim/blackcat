@@ -66,7 +66,8 @@ class Blackcat(object):
     def handle_request(self, request):
         handlers = (
             (r'^hi$', self.handle_hi),
-            (r'^hug(\s(?P<what>.*))*$', self.handle_hug),
+            (r'^(hug|xim)( (?P<what>.*))*$', self.handle_hug),
+            (r'^klette( (?P<who>.*))*$', self.handle_klette),
             (r'^fortune$', self.handle_fortune),
             (r'^feeds( help)*$', self.feed_help),
             (r'^feeds list$', self.feed_list),
@@ -83,7 +84,7 @@ class Blackcat(object):
                     handler(**groups)
                 except Exception, e:
                     logger.exception(e)
-                    self.out('%(nick)s: Error: %(error)s', error=e.message)
+                    self.outn('Error: %(error)s', error=e.message)
                 finally:
                     break
 
@@ -95,17 +96,19 @@ class Blackcat(object):
         }
         if additional_values:
             values.update(additional_values)
-        if not self.is_privmsg() and not response.startswith('*'):
-            response = '%(nick)s: ' + response
         response = response % values
         logger.debug('Response: %s', response)
         print response
+
+    def outn(self, response, **additional_values):
+        response = '%(nick)s: ' + response
+        self.out(response, **additional_values)
 
     def is_privmsg(self):
         return self.sender == self.nick
 
     def handle_unknown(self):
-        self.out('Dunno. Fork http://code.jodal.no/git/?p=blackcat.git '
+        self.outn('Dunno. Fork http://code.jodal.no/git/?p=blackcat.git '
             + 'and fix it.')
 
     def handle_hi(self):
@@ -116,6 +119,12 @@ class Blackcat(object):
             self.out('*klemme %(what)s* ♥', what=what)
         else:
             self.out('*klemme* ♥')
+
+    def handle_klette(self, who):
+        if who:
+            self.out('%(who)s: Rævråtne lausunge!', who=who)
+        else:
+            self.out('Rævråtne lausunge!')
 
     def handle_fortune(self):
         with subprocess.Popen(['/usr/games/fortune', '-s'],
@@ -142,34 +151,34 @@ class Blackcat(object):
             pickle.dump(feeds, file)
 
     def feed_help(self):
-        self.out('Admin: feeds (help|list|add URL|rm URL)')
-        self.out('Usage: whatsnew')
+        self.outn('Admin: feeds (help|list|add URL|rm URL)')
+        self.outn('Usage: whatsnew')
 
     def feed_list(self):
         feeds = self._feed_load()
         if len(feeds[self.nick]['feeds']) == 0:
-            self.out('You are not watching any feeds')
+            self.outn('You are not watching any feeds')
         else:
             for feed in feeds[self.nick]['feeds']:
-                self.out(feed)
+                self.outn(feed)
 
     def feed_add(self, feed_url):
         feeds = self._feed_load()
         if feed_url in feeds[self.nick]['feeds']:
-            self.out("You're already watching that feed")
+            self.outn("You're already watching that feed")
         else:
             feeds[self.nick]['feeds'].append(feed_url)
             self._feed_save(feeds)
-            self.out('Feed added!')
+            self.outn('Feed added!')
 
     def feed_rm(self, feed_url):
         feeds = self._feed_load()
         if feed_url not in feeds[self.nick]['feeds']:
-            self.out("You're not watching that feed")
+            self.outn("You're not watching that feed")
         else:
             feeds[self.nick]['feeds'].remove(feed_url)
             self._feed_save(feeds)
-            self.out('Feed removed!')
+            self.outn('Feed removed!')
 
     def feed_whatsnew(self):
         feeds = self._feed_load()
@@ -186,17 +195,17 @@ class Blackcat(object):
                     })
         if new_entries:
             num_entries = len(new_entries)
-            self.out(
+            self.outn(
                 'Listing %(num_listed)d of %(num_entries)d new',
                 num_listed=min(num_entries, FEEDS_MAX_ENTRIES),
                 num_entries=num_entries,
             )
             for entry in new_entries[:FEEDS_MAX_ENTRIES]:
-                self.out(entry)
+                self.outn(entry)
             feeds[self.nick]['last'] = dt.datetime.now()
             self._feed_save(feeds)
         else:
-            self.out('Nothing new')
+            self.outn('Nothing new')
 
 if __name__ == '__main__':
     blackcat = Blackcat()
