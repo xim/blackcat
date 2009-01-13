@@ -67,7 +67,7 @@ class Blackcat(object):
     def handle_request(self, request):
         handlers = (
             (r'^help$', self.handle_help),
-            (r'^hi$', self.handle_hi),
+            (r'^(hi||hei|hai|hello|sup)$', self.handle_greeting),
             (r'^(hug|xim)( (?P<what>.*))*$', self.handle_hug),
             (r'^(insult|klette)( (?P<who>.*))*$', self.handle_insult),
             (r'^fortune$', self.handle_fortune),
@@ -117,8 +117,16 @@ class Blackcat(object):
         self.outn('Use the force, read the source: '
             + 'http://code.jodal.no/git/?p=blackcat.git;a=blob;f=cmd_handler.py;hb=HEAD')
 
-    def handle_hi(self):
-        self.out('Hi, %(nick)s! How you doing?')
+    def handle_greeting(self):
+        greetings = (
+            'Hi, %(nick)s! How you doing?',
+            '%(nick)s: Åssen hengern? Langs venstre kne som vanlig?',
+            '%(nick)s: Åssen hengern? Gnur litt mot brystvortene?',
+            '%(nick)s: Sup?',
+            '%(nick)s: Wazzup? Lixom.',
+        )
+        greeting = greetings[random.randrange(0, len(greetings))]
+        self.out(greeting)
 
     def handle_hug(self, what):
         hugs = (
@@ -126,6 +134,8 @@ class Blackcat(object):
             'kose',
             'tafse på',
             'våtjokke',
+            'kosemozeoverdoze',
+            'xoxo',
         )
         hug = hugs[random.randrange(0, len(hugs))]
         if what:
