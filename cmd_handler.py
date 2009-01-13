@@ -11,6 +11,7 @@ import os
 import pickle
 import subprocess
 import sys
+import random
 import re
 
 DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
@@ -65,9 +66,10 @@ class Blackcat(object):
 
     def handle_request(self, request):
         handlers = (
+            (r'^help$', self.handle_help),
             (r'^hi$', self.handle_hi),
             (r'^(hug|xim)( (?P<what>.*))*$', self.handle_hug),
-            (r'^klette( (?P<who>.*))*$', self.handle_klette),
+            (r'^(insult|klette)( (?P<who>.*))*$', self.handle_insult),
             (r'^fortune$', self.handle_fortune),
             (r'^feeds( help)*$', self.feed_help),
             (r'^feeds list$', self.feed_list),
@@ -111,6 +113,10 @@ class Blackcat(object):
         self.outn('Dunno. Fork http://code.jodal.no/git/?p=blackcat.git '
             + 'and fix it.')
 
+    def handle_help(self):
+        self.outn('Use the force, read the source: '
+            + 'http://code.jodal.no/git/?p=blackcat.git;a=blob;f=cmd_handler.py;hb=HEAD')
+
     def handle_hi(self):
         self.out('Hi, %(nick)s! How you doing?')
 
@@ -120,11 +126,24 @@ class Blackcat(object):
         else:
             self.out('*klemme* ♥')
 
-    def handle_klette(self, who):
+    def handle_insult(self, who):
+        insults = (
+            'Rævråtne lausunge!',
+            'Flatbanka horeunge!',
+            'Møkkete trailertøs!',
+            'Skitne jødeelsker!',
+            'Forbanna sandnigger!',
+            'Loppeinfiserte puppehår!',
+            'Møkkete tater!',
+            'Skinkerytter!',
+            'Spermbøtte!',
+            'Gen-bunnslam!',
+        )
+        insult = insults[random.randrange(0, len(insults))]
         if who:
-            self.out('%(who)s: Rævråtne lausunge!', who=who)
+            self.out('%(who)s: %(insult)s', who=who, insult=insult)
         else:
-            self.out('Rævråtne lausunge!')
+            self.outn(insult)
 
     def handle_fortune(self):
         with subprocess.Popen(['/usr/games/fortune', '-s'],
