@@ -4,6 +4,7 @@
 """Usage: ./blackcat 'NICK CHANNEL SENDER MESSAGE'"""
 
 from __future__ import with_statement
+from BeautifulSoup import BeautifulSoup
 import datetime as dt
 import feedparser
 import logging
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import random
 import re
+import urllib
 
 DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
 DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -76,6 +78,7 @@ class Blackcat(object):
             (r'^feeds add (?P<feed_url>\S+)$', self.feed_add),
             (r'^feeds rm (?P<feed_url>\S+)$', self.feed_rm),
             (r'^whatsnew$', self.feed_whatsnew),
+            (r'^spotify status$', self.spotify_status),
             (r'^.*$', self.handle_unknown),
         )
         for pattern, handler in handlers:
@@ -242,6 +245,14 @@ class Blackcat(object):
             self._feed_save(feeds)
         else:
             self.outn('Nothing new')
+
+    def spotify_status(self):
+        url = 'http://www.spotify.com/en/help/service-status/'
+        url_handle = urllib.urlopen(url)
+        page = BeautifulSoup(url_handle)
+        div = page.find('div', id='service-status')
+        status = div.h2.contents[0]
+        self.outn(status)
 
 if __name__ == '__main__':
     blackcat = Blackcat()
