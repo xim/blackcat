@@ -17,11 +17,13 @@ import re
 import urllib
 
 DOTFILES = os.path.expanduser('~') + '/.config/blackcat'
+
 DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 FEEDS_FILE = DOTFILES + '/feeds.pickle'
 FEEDS_MAX_ENTRIES = 3
 LOG_FILE = DOTFILES + '/blackcat.log'
 LOG_FORMAT = '%(asctime)s %(levelname)-8s %(message)s'
+SPOTIFY_FILE = DOTFILES + '/spotify.pickle'
 
 logger = logging.getLogger('blackcat')
 
@@ -78,7 +80,12 @@ class Blackcat(object):
             (r'^feeds add (?P<feed_url>\S+)$', self.feed_add),
             (r'^feeds rm (?P<feed_url>\S+)$', self.feed_rm),
             (r'^whatsnew$', self.feed_whatsnew),
+            (r'^spotify( help)*$', self.spotify_help),
             (r'^spotify status$', self.spotify_status),
+            (r'^spotify add (?P<spotify_uri>spotify:\S+)$', self.spotify_add),
+            (r'^spotify add http://open.spotify.com/(?P<spotify_url>\S+)$',
+                self.spotify_add),
+            (r'^spotify random$', self.spotify_random),
             (r'^.*$', self.handle_unknown),
         )
         for pattern, handler in handlers:
@@ -246,6 +253,9 @@ class Blackcat(object):
         else:
             self.outn('Nothing new')
 
+    def spotify_help(self):
+        self.outn('Usage: spotify (help|status|add URL|random)')
+
     def spotify_status(self):
         url = 'http://www.spotify.com/en/help/service-status/'
         url_handle = urllib.urlopen(url)
@@ -253,6 +263,47 @@ class Blackcat(object):
         div = page.find('div', id='service-status')
         status = div.h2.contents[0]
         self.outn(status)
+
+    def _spotify_load(self):
+        spotify_uris = {}
+        if os.path.exists(SPOTIFY_FILE):
+            with open(SPOTIFY_FILE, 'rb') as file:
+                spotify_uris = pickle.load(file)
+        return spotify_uris
+
+    def _spotify_save(self, spotify_uris):
+        with open(SPOTIFY_FILE, 'wb') as file:
+            pickle.dump(spotify_uris, file)
+
+    def _spotify_url_to_uri(self, spotify_url):
+        return 'spotify:%s' % spotify_url.replace(
+            'http://open.spotify.com/').replace('/', ':')
+
+    def _spotify_uri_to_url(self, spotify_uri):
+        return 'http://open.spotify.com/%s' % spotify_uri.replace(':', '/')
+
+    def spotify_add(self, spotify_uri=None, spotify_url=None):
+        assert spotify_uri is not None or spotify_url is not None
+        if spotify_uri is None and spotify_url is not None:
+            spotify_uri = self._spotify_url_to_uri(spotify_url)
+        if not spotify_uri.startswith('spotify:'):
+            self.outn('Sorry, that is not a Spotify URI')
+            return
+        spotify_uris = self._spotify_load()
+        if spotify_uri in spotify_uris.keys():
+            self.outn('The URL has already been added by %(added_by)s',
+                **spotify_uris[spotify_uri])
+        else:
+            spotify_uris[spotify_uri] = {'added_by': self.nick}
+            self._spotify_save(spotify_uris)
+            self.outn('URL added!')
+
+    def spotify_random(self):
+        spotify_uris = self._spotify_load()
+        spotify_uri = random.choice(spotify_uris.keys())
+        spotify_url = self._spotify_uri_to_url(spotify_uri)
+        self.outn('%(url)s added by %(added_by)s',
+            url=spotify_url, **spotify_uris[spotify_uri])
 
 if __name__ == '__main__':
     blackcat = Blackcat()
