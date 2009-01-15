@@ -135,8 +135,7 @@ class Blackcat(object):
             '%(nick)s: Sup?',
             '%(nick)s: Wazzup? Lixom.',
         )
-        greeting = greetings[random.randrange(0, len(greetings))]
-        self.out(greeting)
+        self.out(random.choice(greetings))
 
     def handle_hug(self, what):
         hugs = (
@@ -147,7 +146,7 @@ class Blackcat(object):
             'kosemozeoverdoze',
             'xoxo',
         )
-        hug = hugs[random.randrange(0, len(hugs))]
+        hug = random.choice(hugs)
         if what:
             self.out('*%(hug)s %(what)s* ♥', hug=hug, what=what)
         else:
@@ -166,7 +165,7 @@ class Blackcat(object):
             'Spermbøtte!',
             'Gen-bunnslam!',
         )
-        insult = insults[random.randrange(0, len(insults))]
+        insult = random.choice(insults)
         if who:
             self.out('%(who)s: %(insult)s', who=who, insult=insult)
         else:
