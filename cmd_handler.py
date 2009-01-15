@@ -113,7 +113,8 @@ class Blackcat(object):
         print response
 
     def outn(self, response, **additional_values):
-        response = '%(nick)s: ' + response
+        if not self.is_privmsg():
+            response = '%(nick)s: ' + response
         self.out(response, **additional_values)
 
     def is_privmsg(self):
