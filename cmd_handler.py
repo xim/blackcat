@@ -277,7 +277,7 @@ class Blackcat(object):
 
     def _spotify_url_to_uri(self, spotify_url):
         return 'spotify:%s' % spotify_url.replace(
-            'http://open.spotify.com/').replace('/', ':')
+            'http://open.spotify.com/', '').replace('/', ':')
 
     def _spotify_uri_to_url(self, spotify_uri):
         return 'http://open.spotify.com/%s' % spotify_uri.replace(':', '/')
