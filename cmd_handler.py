@@ -280,7 +280,8 @@ class Blackcat(object):
             'http://open.spotify.com/', '').replace('/', ':')
 
     def _spotify_uri_to_url(self, spotify_uri):
-        return 'http://open.spotify.com/%s' % spotify_uri.replace(':', '/')
+        return 'http://open.spotify.com/%s' % spotify_uri.replace(
+            'spotify:', '').replace(':', '/')
 
     def spotify_add(self, spotify_uri=None, spotify_url=None):
         assert spotify_uri is not None or spotify_url is not None
