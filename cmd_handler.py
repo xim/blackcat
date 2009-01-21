@@ -303,8 +303,11 @@ class Blackcat(object):
         spotify_uris = self._spotify_load()
         spotify_uri = random.choice(spotify_uris.keys())
         spotify_url = self._spotify_uri_to_url(spotify_uri)
-        self.outn('%(url)s added by %(added_by)s',
-            url=spotify_url, **spotify_uris[spotify_uri])
+        if spotify_uris[spotify_uri]['added_by'] == self.nick:
+            self.spotify_random()
+        else:
+            self.outn('%(url)s added by %(added_by)s',
+                url=spotify_url, **spotify_uris[spotify_uri])
 
 if __name__ == '__main__':
     blackcat = Blackcat()
