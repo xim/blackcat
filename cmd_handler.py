@@ -143,7 +143,7 @@ class Blackcat(object):
             'klemme',
             'kose',
             'tafse på',
-            'våtjokke',
+            'tar sofasvømmetak på',
             'kosemozeoverdoze',
             'xoxo',
         )
