@@ -23,9 +23,14 @@ except ImportError:
 
 class Blackcat(object):
 
-    """Usage: %prog 'NICK CHANNEL SENDER MESSAGE'"""
+    """Usage: %prog NICK CHANNEL SENDER MESSAGE | --config"""
 
-    def __init__(self, arguments):
+    nick = None
+    channel = None
+    sender = None
+    message = None
+
+    def __init__(self, *arguments):
 
         self._create_dotfiles_dir()
 
@@ -35,7 +40,10 @@ class Blackcat(object):
         else:
             self._setup_logging()
 
-        self.logger.debug("__init__ got arguments ['%s']" % "', '".join(arguments))
+        self.logger.debug("__init__ got arguments: " + repr(arguments))
+
+        if len(arguments) != 4:
+            return
 
         self.nick = arguments[0]
         if arguments[1] == 'null':
@@ -43,7 +51,7 @@ class Blackcat(object):
         else:
             self.channel = arguments[1]
         self.sender = arguments[2]
-        self._handle_message(arguments[3])
+        self.message = arguments[3]
 
     def _create_dotfiles_dir(self):
         if not os.path.isdir(settings.DOTFILES):
@@ -66,13 +74,13 @@ class Blackcat(object):
 
         self.logger.debug('Set up logging, verbosity %s' % verbosity_level)
 
-    def _handle_message(self, message):
-        self.logger.info('Message: "%s"' % message)
+    def handle_message(self):
+        self.logger.info('Message: "%s"' % self.message)
         for app in settings.APPS:
             self.logger.debug('Loading app "%s"' % app)
             app = __import__(app)
             for pattern, handler in app.handlers:
-                matches = re.match(pattern, message)
+                matches = re.match(pattern, self.message)
                 if matches is not None:
                     self.logger.debug('matched pattern "%s"' % pattern)
                     groups = matches.groupdict()
@@ -83,6 +91,18 @@ class Blackcat(object):
                         self.logger.exception(e)
                         self.outn('Error: %(error)s', error=str(e))
                         return
+
+    def get_match_regex(self):
+        self.logger.debug('Getting match regex')
+        patterns = []
+        for app in settings.APPS:
+            self.logger.debug('Loading app "%s"' % app)
+            app = __import__(app)
+            for pattern, handler in app.handlers:
+                patterns.append(pattern)
+        match_regex = '|'.join(patterns)
+        self.logger.info('Got asked for config, gave match=%s' % match_regex)
+        return match_regex
 
     def out(self, response, **additional_values):
 
@@ -135,6 +155,8 @@ if __name__ == '__main__':
     arguments = sys.argv[1:]
 
     if len(arguments) == 4:
-        Blackcat(arguments)
+        Blackcat(*arguments).handle_message()
+    elif len(arguments) == 1 and arguments[0] == '--config':
+        print 'match=(%s)' % Blackcat().get_match_regex()
     else:
         print Blackcat.__doc__.replace('%prog', sys.argv[0])
