@@ -5,5 +5,5 @@ def handle_unknown(cat, command):
 
 handlers = (
     # Prints on all messages. Most likely, you don't want this.
-    (r'^!?(?P<command>.\w*)', handle_unknown),
+    (r'^!?(?P<command>.\S*)', handle_unknown),
 )
